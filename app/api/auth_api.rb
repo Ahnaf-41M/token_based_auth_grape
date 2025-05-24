@@ -1,13 +1,25 @@
 class AuthAPI < BaseAPI
+  helpers do
+    include Rails.application.routes.url_helpers
+  end
   resource :auth do
     desc "User sign up"
     params do
       requires :email, type: String, desc: "User email"
       requires :password, type: String, desc: "User password"
       requires :company_id, type: Integer, desc: "Company ID"
+      requires :avatar, type: File, desc: "User avatar"
     end
     post :signup do
-      user = User.new(declared(params, include_missing: false))
+      user = User.new(declared(params, include_missing: false).except(:avatar))
+      if params[:avatar]
+        user.avatar.attach(
+          io: params[:avatar][:tempfile],
+          filename: params[:avatar][:filename],
+          content_type: params[:avatar][:type]
+        )
+      end
+
       if user.save
         token = JsonWebToken.encode(user_id: user.id)
         { message: "User created successfully", token: token }
